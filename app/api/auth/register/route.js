@@ -16,7 +16,6 @@ export async function POST(request) {
     if (!email || !password) {
       return Response.json({ error: 'Email and password required' }, { status: 400 });
     }
-    // S6: Input length validation
     if (password.length < 6) {
       return Response.json({ error: 'Password must be at least 6 characters' }, { status: 400 });
     }
@@ -32,10 +31,15 @@ export async function POST(request) {
       return Response.json({ error: 'Too many registration attempts. Please try again later.' }, { status: 429 });
     }
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    );
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!url || !key) {
+      console.error('[Register] Missing env vars:', { url: !!url, key: !!key });
+      return Response.json({ error: 'Server configuration error' }, { status: 500 });
+    }
+
+    const supabase = createClient(url, key);
 
     const displayName = (name || email.split('@')[0]).slice(0, 100);
     const { data, error } = await supabase.auth.signUp({
@@ -45,12 +49,15 @@ export async function POST(request) {
     });
 
     if (error) {
+      console.error('[Register] Supabase error:', error.message, error.status);
       if (error.message.includes('already registered')) {
         return Response.json({ error: 'An account with this email already exists' }, { status: 400 });
       }
-      return Response.json({ error: 'Registration failed' }, { status: 400 });
+      // Return the actual Supabase error for debugging
+      return Response.json({ error: error.message || 'Registration failed' }, { status: 400 });
     }
 
+    // If email confirmation is enabled, data.session will be null
     if (data.session) {
       const response = Response.json({
         token: data.session.access_token,
@@ -66,9 +73,24 @@ export async function POST(request) {
       return response;
     }
 
-    return Response.json({ message: 'Check your email to confirm your account.' });
+    // User was created but email confirmation is required
+    // Still return user info so frontend can handle it
+    if (data.user) {
+      return Response.json({
+        user: {
+          id: data.user.id,
+          email: data.user.email,
+          name: displayName,
+          role: 'Client',
+          initials: displayName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+        },
+        message: 'Email confirmation is enabled. Please turn it off in Supabase → Authentication → Providers → Email.'
+      });
+    }
+
+    return Response.json({ error: 'Registration failed — no session returned. Check if email confirmation is disabled in Supabase.' }, { status: 400 });
   } catch (err) {
     console.error('[Register Error]', err.message);
-    return Response.json({ error: 'Registration failed' }, { status: 500 });
+    return Response.json({ error: 'Registration failed: ' + err.message }, { status: 500 });
   }
 }

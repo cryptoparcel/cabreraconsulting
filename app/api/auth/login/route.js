@@ -1,7 +1,7 @@
 /**
  * POST /api/auth/login
  * Authenticates user via email + password.
- * Sets httpOnly cookie with JWT token for secure session management.
+ * Sets httpOnly cookie with JWT token.
  * Rate limited: 5 attempts per minute per email.
  */
 import { createClient } from '@supabase/supabase-js';
@@ -18,7 +18,6 @@ export async function POST(request) {
       return Response.json({ error: 'Email and password required' }, { status: 400 });
     }
 
-    // S4: Rate limit by lowercase email to prevent brute force
     const rl = rateLimit(`login:${email.toLowerCase()}`, 5, 60000);
     if (!rl.ok) {
       return Response.json(
@@ -27,13 +26,19 @@ export async function POST(request) {
       );
     }
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    );
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!url || !key) {
+      console.error('[Login] Missing env vars:', { url: !!url, key: !!key });
+      return Response.json({ error: 'Server configuration error' }, { status: 500 });
+    }
+
+    const supabase = createClient(url, key);
 
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
+      console.error('[Login] Supabase error:', error.message);
       return Response.json({ error: 'Invalid email or password' }, { status: 401 });
     }
 
@@ -43,9 +48,8 @@ export async function POST(request) {
       .eq('id', data.user.id)
       .single();
 
-    // Set httpOnly cookie + return user data (but NOT the raw token)
     const response = Response.json({
-      token: data.session.access_token, // kept for backward compat — adapter will stop storing it
+      token: data.session.access_token,
       user: {
         id: data.user.id,
         email: data.user.email,
@@ -60,6 +64,6 @@ export async function POST(request) {
     return response;
   } catch (err) {
     console.error('[Login Error]', err.message);
-    return Response.json({ error: 'Login failed' }, { status: 500 });
+    return Response.json({ error: 'Login failed: ' + err.message }, { status: 500 });
   }
 }

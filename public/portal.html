@@ -37,7 +37,7 @@
 
 html{background:var(--black);scroll-behavior:smooth}
 body{font-family:var(--font-body);background:var(--black);color:var(--silver);-webkit-font-smoothing:antialiased;overflow-x:hidden}
-::selection{background:var(--accent);color:var(--black)}
+
 a{color:inherit;text-decoration:none}
 button{font-family:inherit;cursor:pointer}
 img{display:block;max-width:100%}
@@ -258,36 +258,7 @@ a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius
 
 /* ═══ LOADING SKELETON ═══ */
 @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
-.skeleton{background:linear-gradient(90deg,var(--carbon) 25%,var(--graphite) 50%,var(--carbon) 75%);background-size:200% 100%;animation:shimmer 1.5s ease-in-out infinite;border-radius:6px}
-
-/* ═══ GEOMETRIC CURSOR RETICLE ═══ */
-.cursor-reticle{position:fixed;width:28px;height:28px;border:1px solid var(--accent);border-radius:2px;pointer-events:none;z-index:9999;opacity:0;transform:translate(-50%,-50%) rotate(45deg) scale(0.6);transition:opacity 0.2s, transform 0.2s cubic-bezier(0.16,1,0.3,1);mix-blend-mode:difference}
-.cursor-reticle::before,.cursor-reticle::after{content:'';position:absolute;background:var(--accent)}
-.cursor-reticle::before{width:1px;height:6px;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg)}
-.cursor-reticle::after{width:6px;height:1px;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg)}
-.cursor-reticle.active{opacity:1;transform:translate(-50%,-50%) rotate(45deg) scale(1)}
-@media(hover:hover){a,button,.btn,.card,.sb-link,.stat-card,.proj-card,.doc-row,.inv-trow,.team-member,.notif-item{cursor:none}}
-
-/* ═══ RESPONSIVE ═══ */
-@media(max-width:1200px){.stat-cards{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:768px){
-  .sidebar{transform:translateX(-100%)}
-  .sidebar.open{transform:translateX(0)}
-  .main{margin-left:0}
-  .content{padding:1.2rem}
-  .topbar{padding:0 1.2rem}
-  .content-header{flex-direction:column}
-  .stat-cards{grid-template-columns:1fr}
-  .form-row{grid-template-columns:1fr}
-  .header-actions{width:100%}
-}
-
-/* ═══════════════════════════════════════
-   UNIFIED DASHBOARD — NEW COMPONENTS
-   ═══════════════════════════════════════ */
-
-/* Stat Grid (dashboard, inventory, billing) — extends existing .stat-cards */
-.cc-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
+.skeleton{background:linear-gradient(90deg,var(--carbon) 25%,var(--graphite) 50%,var(--carbon) 75%);background-size:200% 100%;animation:shimmer 1.5s ease-in-out infinite; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
 .cc-stat { background: var(--carbon); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 1.4rem; text-decoration: none; color: inherit; transition: all 0.2s; display: block; }
 .cc-stat:hover { border-color: rgba(77,240,192,0.15); background: var(--graphite); transform: translateY(-2px); }
 .cc-stat-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; }
@@ -919,7 +890,7 @@ select.form-input{appearance:none;cursor:pointer}
   ::-webkit-scrollbar-thumb:hover{background:var(--mid)}
 
   /* Selection color */
-  ::selection{background:rgba(77,240,192,0.2);color:var(--white)}
+  
 
   /* Transitions: smooth everything */
   .page-section{transition:opacity 0.15s ease}
@@ -938,6 +909,39 @@ select.form-input{appearance:none;cursor:pointer}
   .skip-link:focus{top:0}
 
   .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+  /* Fix: prevent text clipping on login */
+  .fc{overflow:visible!important}
+  .demo-hint{overflow:visible!important}
+  .fc-footer{overflow:visible!important}
+  #authLink{position:relative;z-index:5}
+
+
+  /* Text selection — readable on dark backgrounds */
+  ::selection{background:rgba(77,240,192,0.35);color:#ffffff}
+  input::selection,textarea::selection{background:rgba(77,240,192,0.4);color:#ffffff}
+
+  /* Ensure input text always visible */
+  input,textarea,select{color:#ffffff!important;-webkit-text-fill-color:#ffffff}
+  input:focus,textarea:focus,select:focus{color:#ffffff!important;-webkit-text-fill-color:#ffffff}
+  input::placeholder{-webkit-text-fill-color:var(--muted)!important}
+
+  /* Mobile login improvements */
+  @media(max-width:768px){
+    .fc{max-width:100%;padding:1.5rem 1.2rem!important}
+    .field-input{font-size:16px!important} /* prevents iOS zoom on focus */
+    .submit-btn{font-size:0.9rem;padding:0.85rem}
+    .demo-hint{font-size:0.75rem}
+    #authLink{padding:0.5rem;display:inline-block} /* bigger tap target */
+  }
+
+  /* Clear error messages */
+  .error-bar{font-size:0.82rem;line-height:1.4}
+  .error-bar.show{animation:fadeIn 0.2s ease}
+
+  /* Auth toggle link — clear and tappable */
+  #authLink{padding:0.4rem 0.2rem;text-decoration:underline!important;font-weight:600!important}
+  #authLink:hover{opacity:0.8}
 </style>
 <body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -2365,10 +2369,11 @@ window.changePassword = function() {
               if (sr.ok && sr.data.seeded) { DB.reset(); Toast.show('Demo data loaded!', 'info', 3000); }
             }).catch(function() {}); // B1: handled
           } else {
-            self._authError(res.data.error || 'Invalid email or password');
+            self._authError(res.data.error || 'Login failed — check your credentials');
           }
         }).catch(function(e) { // B1: handled
-          self._authError('Connection error. Please try again.');
+          console.error('[Auth Error]', e);
+          self._authError('Connection error: ' + (e.message || 'Network issue'));
         });
       return {success: false};
     },
@@ -2377,7 +2382,7 @@ window.changePassword = function() {
       var self = this;
       api('auth/register', {method: 'POST', body: JSON.stringify({email: email, password: pw, name: name})})
         .then(function(res) {
-          if (res.ok && res.data.user) {
+          if (res.ok && res.data.user && res.data.token) {
             localStorage.setItem('cc_user', JSON.stringify(res.data.user));
             self._user = res.data.user;
             self._enter();
@@ -2385,11 +2390,13 @@ window.changePassword = function() {
             api('seed', {method: 'POST'}).then(function(sr) {
               if (sr.ok && sr.data.seeded) { DB.reset(); Toast.show('Demo data loaded!', 'info', 3000); }
             }).catch(function() {}); // B1
+          } else if (res.ok && res.data.user && !res.data.token) {
+            // Email confirmation is on — tell user to turn it off
+            self._authError(res.data.message || 'Turn off email confirmation in Supabase Auth settings, then try again.');
           } else if (res.ok && res.data.message) {
-            Toast.show(res.data.message, 'info', 5000);
-            self._authError('Check your email to confirm, then sign in.');
+            self._authError(res.data.message);
           } else {
-            self._authError(res.data.error || 'Registration failed');
+            self._authError(res.data.error || res.data.message || 'Registration failed — check Vercel logs');
           }
         }).catch(function() { // B1
           self._authError('Connection error. Please try again.');
